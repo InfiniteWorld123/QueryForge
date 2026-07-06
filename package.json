@@ -1,7 +1,7 @@
 {
   "name": "queryforge",
   "private": true,
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "bun@1.3.12",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
@@ -10,6 +10,7 @@
     "db:push": "npx drizzle-kit push",
     "dp:generate": "npx drizzle-kit generate",
     "db:migrate": "npx drizzle-kit migrate",
+    "db:seed": "bun run src/backend/db/seed.ts",
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "vite build",
