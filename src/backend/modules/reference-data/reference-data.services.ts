@@ -8,7 +8,7 @@ export const getStatusesService = async () => {
 		order by position asc
 	`);
 
-	return result;
+	return result.rows;
 };
 
 export const getPrioritiesService = async () => {
@@ -18,5 +18,5 @@ export const getPrioritiesService = async () => {
 		order by level asc
 	`);
 
-	return result;
+	return result.rows;
 };
