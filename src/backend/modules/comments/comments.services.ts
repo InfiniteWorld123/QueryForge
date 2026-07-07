@@ -1,3 +1,5 @@
+import { db } from "#/backend/db";
+import { sql } from "drizzle-orm";
 import type {
 	CommentParamsType,
 	CreateCommentBodyType,
@@ -10,7 +12,10 @@ export const getTaskCommentsService = async ({
 }: {
 	params: TaskCommentsParamsType;
 }) => {
-	void params;
+	const result = await db.execute(sql`
+		select * from labels
+	`);
+
 	return [];
 };
 

@@ -1,3 +1,5 @@
+import { sql } from "drizzle-orm";
+import { db } from "#/backend/db";
 import type {
 	CreateLabelBodyType,
 	LabelParamsType,
@@ -5,7 +7,17 @@ import type {
 } from "./labels.type";
 
 export const getLabelsService = async () => {
-	return [];
+	const result = await db.execute(sql`
+		select
+			id,
+			name,
+			color,
+			created_at as "createdAt"
+		from labels
+		order by name asc
+	`);
+
+	return result.rows;
 };
 
 export const createLabelService = async ({
@@ -13,8 +25,27 @@ export const createLabelService = async ({
 }: {
 	body: CreateLabelBodyType;
 }) => {
-	void body;
-	return null;
+	const id = crypto.randomUUID();
+
+	const result = await db.execute(sql`
+		insert into labels (
+			id,
+			name,
+			color
+		)
+		values (
+			${id},
+			${body.name},
+			${body.color}
+		)
+		returning
+			id,
+			name,
+			color,
+			created_at as "createdAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
 
 export const updateLabelService = async ({
@@ -24,9 +55,24 @@ export const updateLabelService = async ({
 	params: LabelParamsType;
 	body: UpdateLabelBodyType;
 }) => {
-	void params;
-	void body;
-	return null;
+	if (body.name === undefined && body.color === undefined) {
+		return null;
+	}
+
+	const result = await db.execute(sql`
+		update labels
+		set
+			name = coalesce(${body.name ?? null}, name),
+			color = coalesce(${body.color ?? null}, color)
+		where id = ${params.labelId}
+		returning
+			id,
+			name,
+			color,
+			created_at as "createdAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
 
 export const deleteLabelService = async ({
@@ -34,6 +80,15 @@ export const deleteLabelService = async ({
 }: {
 	params: LabelParamsType;
 }) => {
-	void params;
-	return null;
+	const result = await db.execute(sql`
+		delete from labels
+		where id = ${params.labelId}
+		returning
+			id,
+			name,
+			color,
+			created_at as "createdAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
