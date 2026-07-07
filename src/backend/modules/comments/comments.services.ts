@@ -1,5 +1,5 @@
-import { db } from "#/backend/db";
 import { sql } from "drizzle-orm";
+import { db } from "#/backend/db";
 import type {
 	CommentParamsType,
 	CreateCommentBodyType,
@@ -13,10 +13,24 @@ export const getTaskCommentsService = async ({
 	params: TaskCommentsParamsType;
 }) => {
 	const result = await db.execute(sql`
-		select * from labels
+		select
+			c.id,
+			c.body,
+			c.task_id as "taskId",
+			c.created_at as "createdAt",
+			c.updated_at as "updatedAt",
+			u.id as "userId",
+			u.name as "userName",
+			u.email as "userEmail",
+			u.image as "userImage"
+		from comments c
+		join "user" u
+			on u.id = c.user_id
+		where c.task_id = ${params.taskId}
+		order by c.created_at asc
 	`);
 
-	return [];
+	return result.rows;
 };
 
 export const createTaskCommentService = async ({
@@ -26,9 +40,31 @@ export const createTaskCommentService = async ({
 	params: TaskCommentsParamsType;
 	body: CreateCommentBodyType;
 }) => {
-	void params;
-	void body;
-	return null;
+	const id = crypto.randomUUID();
+
+	const result = await db.execute(sql`
+		insert into comments (
+			id,
+			body,
+			task_id,
+			user_id
+		)
+		values (
+			${id},
+			${body.body},
+			${params.taskId},
+			${body.userId}
+		)
+		returning
+			id,
+			body,
+			task_id as "taskId",
+			user_id as "userId",
+			created_at as "createdAt",
+			updated_at as "updatedAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
 
 export const updateCommentService = async ({
@@ -38,9 +74,22 @@ export const updateCommentService = async ({
 	params: CommentParamsType;
 	body: UpdateCommentBodyType;
 }) => {
-	void params;
-	void body;
-	return null;
+	const result = await db.execute(sql`
+		update comments
+		set
+			body = ${body.body},
+			updated_at = now()
+		where id = ${params.commentId}
+		returning
+			id,
+			body,
+			task_id as "taskId",
+			user_id as "userId",
+			created_at as "createdAt",
+			updated_at as "updatedAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
 
 export const deleteCommentService = async ({
@@ -48,6 +97,17 @@ export const deleteCommentService = async ({
 }: {
 	params: CommentParamsType;
 }) => {
-	void params;
-	return null;
+	const result = await db.execute(sql`
+		delete from comments
+		where id = ${params.commentId}
+		returning
+			id,
+			body,
+			task_id as "taskId",
+			user_id as "userId",
+			created_at as "createdAt",
+			updated_at as "updatedAt"
+	`);
+
+	return result.rows[0] ?? null;
 };
