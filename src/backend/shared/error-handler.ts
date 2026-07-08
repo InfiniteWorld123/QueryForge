@@ -12,6 +12,40 @@ type BetterFetchErrorShape = Error & {
 	};
 };
 
+type PostgresErrorShape = Error & {
+	code?: string;
+	constraint?: string;
+	table?: string;
+	detail?: string;
+	cause?: unknown;
+	sourceError?: unknown;
+};
+
+const findPostgresError = (
+	error: unknown,
+	seen = new Set<unknown>(),
+): PostgresErrorShape | null => {
+	if (!error || typeof error !== "object" || seen.has(error)) {
+		return null;
+	}
+
+	seen.add(error);
+
+	if (
+		"code" in error &&
+		typeof (error as PostgresErrorShape).code === "string"
+	) {
+		return error as PostgresErrorShape;
+	}
+
+	const maybeWrapped = error as PostgresErrorShape;
+
+	return (
+		findPostgresError(maybeWrapped.cause, seen) ??
+		findPostgresError(maybeWrapped.sourceError, seen)
+	);
+};
+
 const isResponseError = (error: unknown): error is ResponseError => {
 	if (!error || typeof error !== "object") {
 		return false;
@@ -58,6 +92,53 @@ const toResponseError = (error: unknown): Error & ResponseError => {
 
 	// 2. Generic Error instances
 	if (error instanceof Error) {
+		const postgresError = findPostgresError(error);
+
+		if (postgresError?.code === "23505") {
+			return toErrorWithResponse(
+				responseError({
+					message: "Resource already exists",
+					status: HttpStatusCode.CONFLICT,
+					code: "CONFLICT",
+					details: {
+						constraint: postgresError.constraint,
+						table: postgresError.table,
+						detail: postgresError.detail,
+					},
+				}),
+			);
+		}
+
+		if (postgresError?.code === "23503") {
+			return toErrorWithResponse(
+				responseError({
+					message: "Referenced resource was not found",
+					status: HttpStatusCode.BAD_REQUEST,
+					code: "BAD_REQUEST",
+					details: {
+						constraint: postgresError.constraint,
+						table: postgresError.table,
+						detail: postgresError.detail,
+					},
+				}),
+			);
+		}
+
+		if (postgresError?.code === "23502" || postgresError?.code === "22P02") {
+			return toErrorWithResponse(
+				responseError({
+					message: "Invalid database value",
+					status: HttpStatusCode.BAD_REQUEST,
+					code: "BAD_REQUEST",
+					details: {
+						constraint: postgresError.constraint,
+						table: postgresError.table,
+						detail: postgresError.detail,
+					},
+				}),
+			);
+		}
+
 		// Better Fetch client error check (if thrown from authClient)
 		if ("status" in error && "error" in error) {
 			const fetchError = error as BetterFetchErrorShape;

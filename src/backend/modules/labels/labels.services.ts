@@ -1,5 +1,10 @@
 import { sql } from "drizzle-orm";
 import { db } from "#/backend/db";
+import {
+	ensureUpdateBody,
+	requireCreated,
+	requireFound,
+} from "#/backend/shared/service-utils";
 import type {
 	CreateLabelBodyType,
 	LabelParamsType,
@@ -45,7 +50,7 @@ export const createLabelService = async ({
 			created_at as "createdAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireCreated(result.rows[0], "Label could not be created");
 };
 
 export const updateLabelService = async ({
@@ -55,9 +60,7 @@ export const updateLabelService = async ({
 	params: LabelParamsType;
 	body: UpdateLabelBodyType;
 }) => {
-	if (body.name === undefined && body.color === undefined) {
-		return null;
-	}
+	ensureUpdateBody(body, "At least one label field is required");
 
 	const result = await db.execute(sql`
 		update labels
@@ -72,7 +75,7 @@ export const updateLabelService = async ({
 			created_at as "createdAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Label not found");
 };
 
 export const deleteLabelService = async ({
@@ -90,5 +93,5 @@ export const deleteLabelService = async ({
 			created_at as "createdAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Label not found");
 };

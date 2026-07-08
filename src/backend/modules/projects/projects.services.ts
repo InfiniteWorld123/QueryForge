@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
 import { db } from "#/backend/db";
+import {
+	ensureUpdateBody,
+	requireCreated,
+	requireFound,
+	requireInserted,
+} from "#/backend/shared/service-utils";
 import type {
 	AddProjectMemberBodyType,
 	CreateProjectBodyType,
@@ -59,7 +65,7 @@ export const createProjectService = async ({
 			organization_id as "organizationId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireCreated(result.rows[0], "Project could not be created");
 };
 
 export const getProjectService = async ({
@@ -80,7 +86,7 @@ export const getProjectService = async ({
 		limit 1
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Project not found");
 };
 
 export const updateProjectService = async ({
@@ -90,9 +96,7 @@ export const updateProjectService = async ({
 	params: ProjectParamsType;
 	body: UpdateProjectBodyType;
 }) => {
-	if (body.name === undefined && body.description === undefined) {
-		return null;
-	}
+	ensureUpdateBody(body, "At least one project field is required");
 
 	const result = await db.execute(sql`
 		update projects
@@ -110,7 +114,7 @@ export const updateProjectService = async ({
 			organization_id as "organizationId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Project not found");
 };
 
 export const deleteProjectService = async ({
@@ -130,7 +134,7 @@ export const deleteProjectService = async ({
 			organization_id as "organizationId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Project not found");
 };
 
 export const getProjectMembersService = async ({
@@ -182,7 +186,7 @@ export const addProjectMemberService = async ({
 			user_id as "userId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireInserted(result.rows[0], "User is already a project member");
 };
 
 export const deleteProjectMemberService = async ({
@@ -200,5 +204,5 @@ export const deleteProjectMemberService = async ({
 			pm.user_id as "userId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Project member not found");
 };

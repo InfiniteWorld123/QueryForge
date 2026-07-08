@@ -7,6 +7,7 @@ export const CreateTaskSchema = v.object({
 	statusId: v.pipe(v.string(), v.trim(), v.minLength(1)),
 	priorityId: v.pipe(v.string(), v.trim(), v.minLength(1)),
 	projectId: v.pipe(v.string(), v.trim(), v.minLength(1)),
+	createdByUserId: v.pipe(v.string(), v.trim(), v.minLength(1)),
 	assignedToUserId: v.optional(v.string()),
 });
 

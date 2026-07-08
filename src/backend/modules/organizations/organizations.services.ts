@@ -1,5 +1,11 @@
 import { sql } from "drizzle-orm";
 import { db } from "#/backend/db";
+import {
+	ensureUpdateBody,
+	requireCreated,
+	requireFound,
+	requireInserted,
+} from "#/backend/shared/service-utils";
 import type {
 	AddOrganizationMemberBodyType,
 	CreateOrganizationBodyType,
@@ -53,7 +59,7 @@ export const createOrganizationService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireCreated(result.rows[0], "Organization could not be created");
 };
 
 export const getOrganizationService = async ({
@@ -74,7 +80,7 @@ export const getOrganizationService = async ({
 		limit 1
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Organization not found");
 };
 
 export const updateOrganizationService = async ({
@@ -84,13 +90,7 @@ export const updateOrganizationService = async ({
 	params: OrganizationParamsType;
 	body: UpdateOrganizationBodyType;
 }) => {
-	if (
-		body.name === undefined &&
-		body.slug === undefined &&
-		body.description === undefined
-	) {
-		return null;
-	}
+	ensureUpdateBody(body, "At least one organization field is required");
 
 	const result = await db.execute(sql`
 		update organizations
@@ -109,7 +109,7 @@ export const updateOrganizationService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Organization not found");
 };
 
 export const deleteOrganizationService = async ({
@@ -129,7 +129,7 @@ export const deleteOrganizationService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Organization not found");
 };
 
 export const getOrganizationMembersService = async ({
@@ -181,7 +181,10 @@ export const addOrganizationMemberService = async ({
 			user_id as "userId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireInserted(
+		result.rows[0],
+		"User is already an organization member",
+	);
 };
 
 export const deleteOrganizationMemberService = async ({
@@ -200,5 +203,5 @@ export const deleteOrganizationMemberService = async ({
 			om.user_id as "userId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Organization member not found");
 };

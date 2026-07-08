@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { db } from "#/backend/db";
+import { requireCreated, requireFound } from "#/backend/shared/service-utils";
 import type {
 	CommentParamsType,
 	CreateCommentBodyType,
@@ -64,7 +65,7 @@ export const createTaskCommentService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireCreated(result.rows[0], "Comment could not be created");
 };
 
 export const updateCommentService = async ({
@@ -89,7 +90,7 @@ export const updateCommentService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Comment not found");
 };
 
 export const deleteCommentService = async ({
@@ -109,5 +110,5 @@ export const deleteCommentService = async ({
 			updated_at as "updatedAt"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Comment not found");
 };

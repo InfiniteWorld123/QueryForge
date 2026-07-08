@@ -1,5 +1,11 @@
-import { db } from "#/backend/db";
 import { sql } from "drizzle-orm";
+import { db } from "#/backend/db";
+import {
+	ensureUpdateBody,
+	requireCreated,
+	requireFound,
+	requireInserted,
+} from "#/backend/shared/service-utils";
 import type {
 	AddTaskLabelBodyType,
 	AssignTaskBodyType,
@@ -10,22 +16,53 @@ import type {
 	UpdateTaskBodyType,
 } from "./tasks.type";
 
+const taskSelect = sql`
+	id,
+	title,
+	description,
+	due_date as "dueDate",
+	completed_at as "completedAt",
+	created_at as "createdAt",
+	updated_at as "updatedAt",
+	status_id as "statusId",
+	priority_id as "priorityId",
+	project_id as "projectId",
+	created_by_user_id as "createdByUserId",
+	assigned_to_user_id as "assignedToUserId"
+`;
+
 export const getTasksService = async ({
 	query,
 }: {
 	query?: GetTasksQueryType;
 }) => {
+	const projectId = query?.projectId ?? null;
+	const statusId = query?.statusId ?? null;
+	const priorityId = query?.priorityId ?? null;
+	const assignedToUserId = query?.assignedToUserId ?? null;
+	const labelId = query?.labelId ?? null;
+
 	const result = await db.execute(sql`
-		select * 
+		select
+			${taskSelect}
 		from tasks
-		where assigned_to_user_id = ${query?.assignedToUserId} and
-		where label_id = ${query?.labelId} and
-		where priority_id = ${query?.priorityId} and
-		where project_id = ${query?.projectId} and
-		where status_id = ${query?.statusId}
+		where (${projectId}::text is null or project_id = ${projectId})
+			and (${statusId}::text is null or status_id = ${statusId})
+			and (${priorityId}::text is null or priority_id = ${priorityId})
+			and (${assignedToUserId}::text is null or assigned_to_user_id = ${assignedToUserId})
+			and (
+				${labelId}::text is null
+				or exists (
+					select 1
+					from task_labels tl
+					where tl.task_id = tasks.id
+						and tl.label_id = ${labelId}
+				)
+			)
+		order by created_at desc
 	`);
 
-	return result.rows ?? null;
+	return result.rows;
 };
 
 export const createTaskService = async ({
@@ -36,42 +73,33 @@ export const createTaskService = async ({
 	const id = crypto.randomUUID();
 
 	const result = await db.execute(sql`
-		insert into comments (
+		insert into tasks (
 			id,
-			assigned_to_user_id,
+			title,
 			description,
-			dueDate,
-			priorityId,
-			projectId,
-			statusId,
-			title
+			due_date,
+			status_id,
+			priority_id,
+			project_id,
+			created_by_user_id,
+			assigned_to_user_id
 		)
 		values (
 			${id},
-			${body.assignedToUserId},
-			${body.description},
-			${body.dueDate},
+			${body.title},
+			${body.description ?? null},
+			${body.dueDate ?? null},
+			${body.statusId},
 			${body.priorityId},
 			${body.projectId},
-			${body.statusId},
-			${body.title}
+			${body.createdByUserId},
+			${body.assignedToUserId ?? null}
 		)
 		returning
-			id 
-			title 
-			description 
-			due_date 
-			completed_at 
-			created_at 
-			updated_at 
-			status_id
-			priority_id
-			project_id
-			created_by_user_id
-			assigned_to_user_id
+			${taskSelect}
 	`);
 
-	return result.rows[0] ?? null;
+	return requireCreated(result.rows[0], "Task could not be created");
 };
 
 export const getTaskService = async ({
@@ -80,12 +108,14 @@ export const getTaskService = async ({
 	params: TaskParamsType;
 }) => {
 	const result = await db.execute(sql`
-		select * 
+		select
+			${taskSelect}
 		from tasks
 		where id = ${params.taskId}
+		limit 1
 	`);
 
-	return result.rows ?? null;
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const updateTaskService = async ({
@@ -95,33 +125,25 @@ export const updateTaskService = async ({
 	params: TaskParamsType;
 	body: UpdateTaskBodyType;
 }) => {
+	ensureUpdateBody(body, "At least one task field is required");
+
 	const result = await db.execute(sql`
 		update tasks
 		set
-			assigned_to_user_id = coalesce(${body.assignedToUserId ?? null}, assigned_to_user_id)
-			description = coalesce(${body.description ?? null}, description)
-			dueDate = coalesce(${body.dueDate ?? null}, dueDate)
-			priorityId = coalesce(${body.priorityId ?? null}, priorityId)
-			projectId = coalesce(${body.projectId ?? null}, projectId)
-			statusId = coalesce(${body.statusId ?? null}, statusId)
-			title = coalesce(${body.title ?? null}, title)
+			assigned_to_user_id = coalesce(${body.assignedToUserId ?? null}, assigned_to_user_id),
+			description = coalesce(${body.description ?? null}, description),
+			due_date = coalesce(${body.dueDate ?? null}, due_date),
+			priority_id = coalesce(${body.priorityId ?? null}, priority_id),
+			project_id = coalesce(${body.projectId ?? null}, project_id),
+			status_id = coalesce(${body.statusId ?? null}, status_id),
+			title = coalesce(${body.title ?? null}, title),
+			updated_at = now()
 		where id = ${params.taskId}
 		returning
-			id 
-			title 
-			description 
-			due_date 
-			completed_at 
-			created_at 
-			updated_at 
-			status_id
-			priority_id
-			project_id
-			created_by_user_id
-			assigned_to_user_id
+			${taskSelect}
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const deleteTaskService = async ({
@@ -133,21 +155,10 @@ export const deleteTaskService = async ({
 		delete from tasks
 		where id = ${params.taskId}
 		returning
-			id 
-			title 
-			description 
-			due_date 
-			completed_at 
-			created_at 
-			updated_at 
-			status_id
-			priority_id
-			project_id
-			created_by_user_id
-			assigned_to_user_id
+			${taskSelect}
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const assignTaskService = async ({
@@ -157,30 +168,17 @@ export const assignTaskService = async ({
 	params: TaskParamsType;
 	body: AssignTaskBodyType;
 }) => {
-	void params;
-	void body;
-	
 	const result = await db.execute(sql`
 		update tasks
 		set
-			assigned_to_user_id = coalesce(${body.assignedToUserId ?? null}, assigned_to_user_id)
+			assigned_to_user_id = ${body.assignedToUserId},
+			updated_at = now()
 		where id = ${params.taskId}
 		returning
-			id 
-			title 
-			description 
-			due_date 
-			completed_at 
-			created_at 
-			updated_at 
-			status_id
-			priority_id
-			project_id
-			created_by_user_id
-			assigned_to_user_id
+			${taskSelect}
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const completeTaskService = async ({
@@ -191,24 +189,14 @@ export const completeTaskService = async ({
 	const result = await db.execute(sql`
 		update tasks
 		set
-			completed_at = ${Date.now}
+			completed_at = now(),
+			updated_at = now()
 		where id = ${params.taskId}
 		returning
-			id 
-			title 
-			description 
-			due_date 
-			completed_at 
-			created_at 
-			updated_at 
-			status_id
-			priority_id
-			project_id
-			created_by_user_id
-			assigned_to_user_id
+			${taskSelect}
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const reopenTaskService = async ({
@@ -216,8 +204,17 @@ export const reopenTaskService = async ({
 }: {
 	params: TaskParamsType;
 }) => {
-	void params;
-	return null;
+	const result = await db.execute(sql`
+		update tasks
+		set
+			completed_at = null,
+			updated_at = now()
+		where id = ${params.taskId}
+		returning
+			${taskSelect}
+	`);
+
+	return requireFound(result.rows[0], "Task not found");
 };
 
 export const getTaskLabelsService = async ({
@@ -269,7 +266,7 @@ export const addTaskLabelService = async ({
 			task_id as "taskId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireInserted(result.rows[0], "Task already has this label");
 };
 
 export const deleteTaskLabelService = async ({
@@ -287,5 +284,5 @@ export const deleteTaskLabelService = async ({
 			task_id as "taskId"
 	`);
 
-	return result.rows[0] ?? null;
+	return requireFound(result.rows[0], "Task label not found");
 };
