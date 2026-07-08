@@ -1,6 +1,11 @@
+import { db } from "#/backend/db";
+import { sql } from "drizzle-orm";
 import type { ProjectReportParamsType } from "./reports.type";
 
 export const getTasksByStatusReportService = async () => {
+	const result = await db.execute(sql`		
+	`);
+
 	return [];
 };
 
