@@ -13,7 +13,7 @@ import { tasksRoutes } from "#/backend/modules/tasks/tasks.route";
 import { usersRoutes } from "#/backend/modules/users/users.route";
 import { AppError } from "#/backend/shared/error";
 import { handleError } from "#/backend/shared/error-handler";
-import { auth } from "../../backend/shared/auth";
+import { auth } from "../../../backend/shared/auth";
 
 const app = new Elysia({ prefix: "/api" })
 	.error({ AppError })

@@ -1,0 +1,67 @@
+/*
+ * QueryForge — global styles
+ * Tailwind v4 + HeroUI v3. HeroUI's stylesheet pulls in Tailwind itself and the
+ * full semantic token layer (--background / --surface / --foreground / --muted /
+ * --accent / --border ...), with dark mode driven by the `.dark` class.
+ */
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* ---- Type system -----------------------------------------------------------
+ * Editorial serif for marketing display, a refined grotesque for UI/body, and a
+ * mono reserved for the brand mark + code (a nod to the project's SQL roots).
+ * Fonts are loaded via <link> in the root document head.
+ */
+@theme {
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* ---- Accent: retune HeroUI's default blue toward a restrained indigo -------- */
+@layer base {
+  :root,
+  .light,
+  [data-theme="light"] {
+    --radius: 0.625rem;
+    --accent: oklch(0.548 0.208 277.1);
+    --accent-foreground: oklch(0.99 0 0);
+    --focus: var(--accent);
+  }
+
+  .dark,
+  [data-theme="dark"] {
+    --accent: oklch(0.672 0.168 277.5);
+    --accent-foreground: oklch(0.14 0.02 278);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--accent) 24%, transparent);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}

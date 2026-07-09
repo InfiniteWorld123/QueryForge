@@ -12,18 +12,8 @@ import type {
 	VerifyEmailServiceType,
 } from "./auth.type";
 
-export const signUpService = async ({ body }: { body: SignUpServiceType }) => {
-	const result = await auth.api.signUpEmail({ body });
-
-	await auth.api.sendVerificationOTP({
-		body: {
-			email: body.email,
-			type: "email-verification",
-		},
-	});
-
-	return result;
-};
+export const signUpService = async ({ body }: { body: SignUpServiceType }) =>
+	await auth.api.signUpEmail({ body });
 
 export const signInService = async ({ body }: { body: SignInServiceType }) =>
 	await auth.api.signInEmail({ body });
